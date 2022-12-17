@@ -5,22 +5,26 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { engine } from 'express-handlebars';
 import {routerProducts, products}  from './src/router/productos.js';
-import routerLogin  from './src/router/login.js';
+import { routerInfo } from './src/router/info.js';
+import routerLogin from './src/router/login.js';
+import {routerRandom} from './src/router/random.js';
 import session from 'express-session';
 import mongoose from "mongoose";
-import {UserModel} from "./src/models/user.js"
 import MongoStore from 'connect-mongo';
 import passport from "passport";
-import { normalize } from 'normalizr';
+import { config } from './config.js';
+import parsedArgs from "minimist";
 
 /* ------------------- import de clase contenedora y otros ------------------ */
-
 import { ContenedorArchivo } from './src/managers/ContenedorArchivo.js';
 
 /* --------------------------- constantes globales -------------------------- */
-
 const chatsUsers = new ContenedorArchivo('chats')
 const apiproducts = new ContenedorArchivo('products')
+const options = {default:{p:8080}, alias:{p:"puerto"}}
+const objArguments = parsedArgs(process.argv.slice(2), options);
+const port = objArguments.puerto;
+
 /* ------------------- constantes necesarias del servidor ------------------- */
 const app = express();
 const httpServer = new HttpServer.createServer(app); 
@@ -29,16 +33,15 @@ const io = new IoServer.Server(httpServer); //conectamos con el servidor princip
 const __filename = fileURLToPath(import.meta.url); 
 // ^^^ Esta es una variable especial que contiene toda la meta información relativa al módulo, de forma que podremos acceder al contexto del módulo.
 const __dirname = path.dirname(__filename)
-const PORT = process.env.PORT || 3000;
+const PORT = port || 3000;
 
 /* ------------------------------- configuracion del servidor ------------------------------- */
-
 app.use(express.static(__dirname + '/src/public')) 
 app.use(express.json());
 app.use(express.urlencoded({extended: true}))
 
 /* ------------------------------- Conexion a la base de datos ------------------------------- */
-const mongoUrl= "COPIA1"
+const mongoUrl= config.MONGOURLBD
 
 mongoose.connect(mongoUrl,{
     useNewUrlParser: true,
@@ -48,12 +51,10 @@ mongoose.connect(mongoUrl,{
     console.log("conexion a la base de datos de manera exitosa")
 });
 
-
 /* ------------------------------- configuracion de SESSION ------------------------------- */
-
 app.use(session({
     store: MongoStore.create({
-        mongoUrl:`COPIA2`
+        mongoUrl:config.MONGOURLSESSION
     }),
     secret:"claveCualquiera",
     resave:false,
@@ -70,6 +71,8 @@ app.use(passport.session());//vinculacion entre passport y las sesiones de nuest
 /* ------------------- rutas /api/productos ------------------- */
 app.use('/api/productos', routerProducts );
 app.use('/api/login', routerLogin );
+app.use('/api/info', routerInfo );
+app.use('/api/randoms', routerRandom );
 
 /* ---------------------- definicion motor de plantilla --------------------- */
 app.engine('hbs', engine({extname: 'hbs'}))
@@ -79,16 +82,12 @@ app.set('view engine', 'hbs') // definitar motor para express
 /* -------------------- Se crea el servidor y se enciende ------------------- */
 httpServer.listen(PORT, ()=> console.log(`Server listening on port ${PORT}`));
 
-
 /* -------------------------- serializar un usuario ------------------------- */
 passport.serializeUser((user,done)=>{
     done(null, user.id)
 });
 
-
 /* --------- GET '/' -> devuelve todos los productos, conecto con handlebars --------- */
-
-
 const  checkUserLogged = async (req,res,next)=>{
     if(req.session.username){
         next();
