@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const usersCollection = "users";
+mongoose.set("strictQuery", false);
 
 const userSchema = new mongoose.Schema({
     nombre: String,
